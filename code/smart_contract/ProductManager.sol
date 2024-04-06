@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /*
-Assignment 05 – Supply Chain Product Payment Management
+Supply Chain Product Payment Management
 Name: Jingda Yang
 Date: 04/01/2024
 */
