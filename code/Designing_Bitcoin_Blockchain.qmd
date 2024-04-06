@@ -1,0 +1,846 @@
+---
+title: "Design Bitcoin Blockchain"
+author:
+  - name: Jingda Yang
+    affiliations:
+      - name: Georgetown University
+        city: Washington
+        state: DC
+
+format:
+  html:
+    theme:
+        dark: darkly
+        light: cosmo
+        
+    embed-resources: true
+    # eval: false
+    code-fold: show
+    self-contained: true
+    highlight: tango
+    page-layout: full
+    fig-cap-location: bottom
+    toc: true
+    toc-location: left
+    toc-title: Contents
+    number-sections: true
+    grid:
+      sidebar-width: 130px
+      body-width: 1000px
+---
+
+
+![BITCOIN](asd.jpg){width=12inch height=4inch}
+ 
+
+# Introduction
+The objective of this work is to delve into the intricacies of designing the Bitcoin blockchain, providing a comprehensive overview that spans from the underlying data structures to the desired functionalities that make Bitcoin a secure and decentralized system. Through a systematic exploration, we aim to unveil the mechanisms that ensure integrity and transparency in Bitcoin transactions, setting a precedent for the development of future blockchain technologies.
+
+As we embark on this journey, readers will be introduced to the core concepts that underpin the blockchain, including the blockchain data structure itself, the cryptographic principles that secure it, and the consensus algorithms that maintain its integrity. Furthermore, we will explore the practical aspects of blockchain technology by walking through the implementation details, starting with the importation of necessary libraries and culminating in the definition of a Block class
+
+::: {.callout-note}
+## Objective
+
+To design and implement a blockchain data structure using Python, emphasizing understanding each component and its integration.
+  
+Fundamentally, a blockchain is an amalgamation of several technologies. I would like to see each of those technologies built and combined in this assignment. 
+:::
+
+
+# Blockchain Data Structure
+
+Each blockchain starts with a Genesis block. We will need to define this block function in object-oriented Python. We need to implement the `hash_block()`, which computes the hash value of this block based on how we initialize it. This function takes in no parameters. 
+
+## Desired Functionality:
+- Concatenate string representations of all the class variables 
+- Computes the SHA256 hash of this concatenation. 
+
+## Importing Libraries
+
+Import the following libraries before developing the function `hashlib`, `random`, `datetime`, `date`, `time`, `ipyparallel`, `numpy`, `matplotlib`.
+
+```{python}
+# import necessary libraries according to the requirements
+import hashlib as hasher
+import random
+import datetime as date
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+```
+
+## Block Class
+
+The main `Block` components we will need:
+
+1.	index - The index of the block on the chain (zero-indexed)
+2.	timestamp – T time that the block was added to the chain
+3.	data - The data the block contains (Usually points to the root of a Merkel tree, but we can use a common thread for this)
+4.	previous_hash - The hash value of the previous block
+5.	hash - The hash of this block is computed using the hash_block function
+6.	nonce - The variable value that we change to alter the hash output (Default value = 0, irrelevant in this section)
+
+We will need to define two functions in class Object named Block, and the two functions are `__init__()` (called dunder init) and `blockHash()`.
+
+The dunder `init` function takes six inputs, including a self, from the list above (#5 above is the output). The `blockHash()` function takes inputs from dunder `init` in a string form, appends them, and encodes them through a `SHA256` function.
+
+
+```{python}
+# define a Block class to create a block
+# this class has init method to initialize the block, and blockHash method to hash the block
+class Block:
+    def __init__(self, index, timestamp, data, previous_hash, nonce = 0):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data
+        self.nonce = nonce # set nonce as default, so it will not apply to the first section.
+        self.previous_hash = previous_hash
+        self.hash = self.blockHash()
+
+# define a blockHash method to hash the block
+
+    def blockHash(self):
+        sha = hasher.sha256()
+        blockHash = (str(self.index) + 
+                    str(self.timestamp) + 
+                    str(self.data) + 
+                    str(self.previous_hash) + 
+                    str(self.nonce))
+        blockHash = blockHash.encode('utf-8')
+        sha.update(blockHash)
+        return sha.hexdigest()
+```
+
+::: {.callout-tip}
+## note
+This `class block` will be used to generate the genesis block and the subsequent blocks in the blockchain. The `blockHash()` function will be used to hash the block.
+:::
+
+## Generate the Genesis Block 
+
+```{python}
+# Generate the genesis block hash 
+# Here I set some initial values for the genesis block
+block_time =  '2023-12-30 23:59:59'
+data = 'Blockchain For Data Science'
+previous_hash = '9136cfeb0c77b41e1e86cb9940ca9bb65f7aca4e8e366a8ecf9226b735e0c323'
+index = 1
+new_block = Block(index, block_time, data, previous_hash)
+print(new_block.hash)
+```
+
+::: {.callout-tip}
+## note
+We use the information above to validate the `class block` function. We can also call the initial block Genesis Block.
+
+
+The Genesis Block is the first block in the blockchain. It is the only block that does not have a previous block. The genesis block is hardcoded into the blockchain software. This Genesis Block should contain the following information: Timestamp, Data, Previous Hash, and Index. We can use `class block` to generate the genesis block and show the hash value of the genesis block.
+:::
+
+## Test Function
+
+Code below will validate the block hash.
+
+```{python}
+#In this function, we will validate the block hash.
+def block_validation(index, block_time, data, previous_hash):
+    new_block = Block(index, block_time, data, previous_hash)
+    check_string = '9861ae4c1781b2161cd3f9557829aa4cc886465948fec8ba29fc5fe47925aa0d'
+    print_statement = "This is a valid Block" if str(new_block.hash) == check_string else "Please Check your work, this is incorrect."
+    print(print_statement)
+    
+block_time = '2023-12-30 23:59:59'
+data = 'Blockchain For Data Science'
+previous_hash = '9136cfeb0c77b41e1e86cb9940ca9bb65f7aca4e8e366a8ecf9226b735e0c323'
+index = 1
+# this initial genesis block information is the same as the previous chunk.
+
+block_validation(index, block_time, data, previous_hash)
+```
+
+::: {.callout-tip}
+## note
+The message above shows that the block hash is valid. This is the expected output. If the output is different, please check the code.
+:::
+
+# Creating a chain out of single blocks
+
+Now that we have our class `Block()` completed, we need to build a chain out of them. Define a function that creates a `genesis_block()`. This will generate the first block of the chain. Then create the function `new_block()`, which builds a new block on top of a given block.
+
+The `genesis_block()` function has `index = 0`, `timestamp = Now` (whenever the function is being called), `data = "Genesis Block"`, `previous_hash = "0"` and a `return`. Be careful with `NOW` function (it requires `datetime` from `date` package). `New_block()` function will take the following inputs:
+
+1. `Last_block` = an instance of class Block, the block we're building our next block on top of.
+2. `index` = index of last_block + 1
+3. `timestamp` = Now (whenever the function is being called)
+4. `data` = `"Block {index} generated"` (for example, block with index 5 would have data: "Block 5 generated")
+5. `previous_hash` = hash of `last_block`
+
+## Generating the Genesis Block
+
+```{python}
+# Creates the first block with current time and generic data
+def create_genesis_block():
+    # Manually construct a block with index zero and arbitrary previous hash using Block() class
+    genesis_block = Block(0, date.datetime.now(), "Genesis Block", "0")
+    return genesis_block
+
+#Function that creates the next block, given the last block on the chain you want to mine on
+def next_block(last_block, nonce=0):
+    # Your code for next block here
+    this_index = last_block.index + 1
+    this_timestamp = date.datetime.now()
+    this_data = "Block " + str(this_index) + " generated" # modified the example string output.
+    this_prevhash = last_block.hash
+    this_block = Block(this_index, this_timestamp, this_data, this_prevhash)
+    return this_block
+```
+
+::: {.callout-tip}
+## note
+Genesis Block is the first block in the blockchain. It is the only block that does not have a previous block. The genesis block is hardcoded into the blockchain software. This Genesis Block should contain the following information: Timestamp, Data, Previous Hash, and Index. We can use `class block` to generate the genesis block and show the hash value of the genesis block.
+
+Once the function is generated, use the following code to test the validity
+:::
+
+```{python}
+# Validate the genesis block here 
+def genesis_validation(genesis_block):
+    block_1 = next_block(genesis_block)
+
+    if (block_1.index == 1 and 
+    block_1.data == "Block 1 generated" and 
+    block_1.previous_hash == genesis_block.hash and 
+    str(type(block_1.timestamp)) == "<class 'datetime.datetime'>"):
+        print("Valid Genesis block")
+
+    else:
+        print("Check the code, not a valid genesis block:(")
+
+genesis_block = create_genesis_block()
+
+genesis_validation(genesis_block)
+```
+
+# Generating complete Blockchain
+
+We now have a complete program required to create a chain. We need variables (and/or functions) `blockchain`, `previous_block`, and `num_blocks` to generate a chain for a specified number of blocks. Use `num_blocks` as 10. Blockchain is used to initialize with the genesis block inside, initialized as a list. The variables and functions will:
+1. `previous_block` – points to the genesis block.
+2. `num_blocks` – the specific number of blocks to add to the chain. For the assignment, use 10.
+
+We want to complete the implementation of the function `complete_chain()`. It will take the above three inputs, which correspond to the initializations that we made earlier. 
+
+1.	The function will need a for loop from 0 to num blocks. Inside the loop, we will use `newblock()` function from #2 to add to the block list. 
+2.	Once the block is generated, we will append it to the blockchain array generated above. 
+3.	We will now set the block from step 1 as `previous_block`.
+4.	Print `(“the block #{} is added to the blockchain”.format(addedblock.index))`
+5.	`Print(“Hash : {}\n”.format(addedblock.hash))`
+
+
+## Initialize the chain
+```{python}
+# Create the blockchain and add the genesis block
+blockchain = [create_genesis_block()] # this is similar to genesis_block from before
+
+# Create our initial reference to previous block which points to the genesis block
+previous_block = blockchain[0]# get the first block from the blockchain object
+
+# How many blocks should we add to the chain after the genesis block
+num_blocks = 10 # Change this to 10 for the assignment
+```
+
+::: {.callout-tip}
+## note
+First we set the number of blocks to 10. We then create the blockchain and add the genesis block to it. We set the initial reference to the previous block, which points to the genesis block.
+:::
+
+## Create a chain function
+```{python}
+def complete_chain(num_blocks, blockchain, previous_block):
+    # Add blocks to the chain
+    for i in range(0, num_blocks):
+        #adding the block 
+        block_to_add = next_block(previous_block)     # use next block function
+        # append this block to the blockchain list
+        blockchain.append(block_to_add)
+        # Set the block as the previous block for the next iteration
+        previous_block = block_to_add# Set the previous block to the block you just added
+        
+        # Tell everyone about it! show the block number and hash
+        print("the block #{} is added to the blockchain!".format(block_to_add.index))
+        print("Hash: {}\n".format(block_to_add.hash))
+
+```
+
+## Print the Chain
+```{python}
+example_chain = complete_chain(num_blocks, blockchain, previous_block)
+print(example_chain)
+```
+
+You will see ten blocks with their hashes.
+
+::: {.callout-tip}
+## note
+The function `complete_chain()` will generate a chain of blocks. The function will take the number of blocks, the blockchain, and the previous block as inputs. It will generate a chain of blocks and print the block number and hash for each block.
+:::
+
+# Nonce and Difficulty
+
+Let’s make it more realistic in assignment two by adding the proof-of-work consensus mechanism that Bitcoin’s Blockchain uses. We need to look at two concepts for proof of work and proof of stake simulation: **Nonce** and **Difficulty**.
+
+
+## Nonce
+
+1.	The Nonce – A randomly generated value added to the blocks to vary block hashes
+2.	The network specifies the difficulty. We will set this. It defines the valid hashes (number of) out of all possible values. Greater difficulty indicates a lower number of valid hashes.
+
+### Define function generate_nonce() 
+
+There are multiple ways to develop `generate_nonce()`. We can use the following methods since this is a regular n-digit random number. Although we just need one method, you might be able to explore the ones you like. Computers can not generate true random numbers, so they use pseudo-random numbers. 
+
+1.	We can use `randint` function to generate a number between a and b. There is a limitation to this. What is that limitation?
+2.	`nonce = secrets.token_urlsafe()` generates cryptographically strong random numbers.
+3.	and many others, explore.
+
+```{python}
+import secrets
+
+def generate_nonce(length=20):
+    # Your code for nonce here
+    digits = '0123456789' # use numbers from 0-9
+    nonce = ''.join(secrets.choice(digits) for _ in range(length)) # use secrets.choice to generate a random number
+    # I first set digits = '0123456789' and then use secrets.choices() to generate a random number
+    # The reason why we do not only use randint(0,9) is that a single digit is not cryptographically secure,
+    # and it can be easily guessed by an attacker.
+    return nonce
+
+```
+
+::: {.callout-tip}
+## note
+`nonce` is a random number that is used to vary the hash of the block. The function `generate_nonce()` generates a random number of a specified length. This function will be used to generate the nonce for the blocks in the blockchain.
+:::
+
+```{python}
+print(generate_nonce())
+```
+
+### Define function generate_difficulty_bound()
+
+This is a bit harder to conceptualize. In Bitcoin, we usually look for the number of zeros before a hash to define the difficulty.
+
+The function takes only one argument, `generate_difficulty_bound(difficulty=1)`.
+1.	Initiate an empty string that will hold our difficulty hash
+2.	We now need to generate a hex string that starts with zeros of size equal to "difficulty." So if `difficulty =1`, then the string will have 1 leading zero, `difficulty=2` will have 2 leading zeros. Use a `for` loop to generate this and append it to the string in 1.
+3.	In the same function, define a `for` loop to append a hex character, `F`. This loop should run for the range of length (64-difficulty).
+4.	We also need to prepend `0x` to the now completely formed string. 
+5.	This function should return the integer value from the string with a `base 16` (since this is a hex code).
+
+```{python}
+# define a function to generate difficulty bound
+def generate_difficulty_bound(difficulty=1):
+    # Assign an empty string to store the difficulty hash
+    diff_str = ''
+    # for loop to generate the leading zeros (appending to the empty string) 
+    for i in range(difficulty):
+        diff_str += '0'
+      # append the leading zeros to the empty string
+
+    # for loop to generate the trailing Fs (appending to the empty string)
+    for i in range(64 - difficulty):
+        diff_str += 'F'
+      # append the trailing Fs to the empty string
+  # prepend 0x to the string
+    diff_str = '0x' + diff_str # "0x" needs to be added at the front to specify that it is a hex representation
+    # print(diff_str)  # we can also print it to check the complete string.
+    return (int(diff_str, 16))  # Specifies that we want to create an integer of base 16 (as opposed to the default  base 10)
+```
+
+::: {.callout-tip}
+## note
+The function `generate_difficulty_bound()` generates a difficulty bound for the blockchain. The difficulty bound is a hex string that specifies the number of leading zeros in the hash. The function takes a difficulty level as an argument and returns the difficulty bound as an integer.
+:::
+
+```{python}
+# print an example of the difficulty bound
+print(generate_difficulty_bound(1))
+```
+
+### Engineer a nonce given the previous block’s hash and difficulty
+
+The function `find_next_block()` tries different blocks with the same data, index etc. but different nonces that satisfy the difficulty metric specified. This function takes three arguments `find_next_block(last_block, difficulty, nonce_length)`
+1.	Create variable `start_time = time.process_time()`.
+2.	Create a variable that stores `generate_difficulty_bound(difficulty)`.
+3.	Create a variable that sets `next_block(last_block)`.
+4.	Create a variable that stores the hashes tried and set the start value to 1 (`hashtried=1`). You will increment this in every loop.
+5.	Create a while loop that conditionally tests the new block's hash (in hex, so `int(new_block.hash, 16)`) to be greater than the `difficultybound` variable from #2 above.
+6.	Create a variable nonce to store `generate_nonce(nonce_length value)`
+7.	Create a new_block variable that used `Block()` function from before.
+8.	Increment `hashtried` by 1 (`hashtried +=1`)
+9.	`time_taken = time.process_time() – start_time` will calculate the time for finding the block.
+10.	Return the value of time taken, hashtried, and new block
+
+```{python}
+# Given a previous block and a difficulty metric, find a nonce that results in a lower hash value
+def find_next_block(last_block, difficulty, nonce_length):
+    # Assign the result of 'generate_difficulty_bound' with 'difficulty' as the argument to 'difficulty_bound'
+    difficulty_bound = generate_difficulty_bound(difficulty)
+
+    # Capture the start time using 'time.process_time()'
+    start = time.process_time()
+
+    # Generate the next block based on 'last_block' using an appropriate function
+    new_block = next_block(last_block)
+
+    # Initialize the 'hashes_tried' counter to 1
+    hashes_tried = 1
+    
+    # Implement a while loop that continues until the hash of 'new_block' 
+    # is less than or equal to 'difficulty_bound'.
+    # Inside the loop:
+    #   - Generate a new nonce using 'generate_nonce' with 'nonce_length'.
+    #   - Create a new instance of 'Block' with the new nonce and update 'new_block'.
+    #   - Increment 'hashes_tried' by 1 after each iteration.
+    while int(new_block.hash, 16) > difficulty_bound:
+        nonce = generate_nonce(nonce_length)
+        new_block = Block(new_block.index, new_block.timestamp, new_block.data, new_block.previous_hash, nonce)
+        hashes_tried += 1
+
+    time_taken = time.process_time() - start
+    return(time_taken, hashes_tried, new_block)
+```
+
+::: {.callout-tip}
+## note
+The function `find_next_block()` finds a nonce that satisfies the difficulty metric for the blockchain. The function takes a previous block, a difficulty level, and a nonce length as arguments. It returns the time taken to find the block, the number of hashes tried, and the new block.
+:::
+
+# Consensus Mechanism
+
+Bitcoin uses a proof-of-work, while Ethereum 2.0 uses a proof-of-stake consensus mechanism. We will simulate this in our blockchain. We will use the following steps to simulate consensus mechanisms:
+
+## Proof-of-Work
+
+To create Bitcoin's proof-of-work, we need to find a nonce that satisfies the difficulty metric. We will use the `find_next_block()` function from above to find the nonce. We will use the following steps to simulate proof-of-work:
+
+1.	Create a function `create_blockchain` that takes variables
+    a.	`num_blocks`
+    b.	`difficulty`
+    c.	`blockchain`
+    d.	`previous_block`
+    e.	`nonce_length`
+    f.	`broadcast=1`
+2.	Initiate two arrays to store `hash` and `time` so we can record the details.
+3.	Initiate a `for` loop to run for the number of blocks `(0, numblocks)`
+    a.	Set the `timetaken`, `hashestried`, `block_to_add`  to take values from `find_next_block` function from Assignment 1.
+    b.	Append `block_to_add` to the blockchain array
+    c.	Set `previousblock` to be a newly generated block (`block_to_add`)
+    d.	Append hash tried to `hasharray`
+    e.	Append time taken to `timearray`
+4.	Time to broadcast this to the network `(broadcast=1, default value)` is a binary input that prints: 
+    a.	Block number added to the chain
+    b.	Number of hashes tried before solving the puzzle
+    c.	Time to find the block
+    d.	Hash of the current block
+    e.	Returns the hash and time arrays
+
+Given the following data, generate a blockchain with 10 blocks and a difficulty between 3-7 (the higher, the better; use Google Colab). 
+
+```{python}
+# Create the blockchain and add the genesis block
+blockchain = [create_genesis_block()]
+
+# Set the initial reference to the previous block, pointing to the genesis block
+previous_block = blockchain[0]
+
+# Specify the number of blocks to add to the chain (excluding the genesis block)
+num_blocks = 10
+
+# Define the difficulty level for the PoW algorithm
+difficulty = 3 # I only set the difficulty to 3. It takes a long time to run the code if I set it to 5.
+
+# Set the length of the nonce to be generated
+nonce_length = 20
+
+# Create a blockchain using the PoW algorithm
+def create_pow_blockchain(num_blocks, difficulty, blockchain, previous_block, nonce_length, broadcast=1):
+    hash_array = []
+    time_array = []
+    for i in range(0, num_blocks):
+        # Use the find_next_block function to mine a new block
+        time_taken, hashes_tried, block_to_add = find_next_block(previous_block, difficulty, nonce_length)
+
+        # Add the newly mined block to the blockchain
+        blockchain.append(block_to_add)
+
+        # Update the reference to the previous block
+        previous_block = block_to_add
+
+        # Record the number of hashes tried and the time taken for each block
+        hash_array.append(hashes_tried)
+        time_array.append(time_taken)
+        if broadcast:
+            print("Block #{} added to the chain".format(block_to_add.index))
+            print("{} Hashes Tried!".format(hashes_tried))
+            print("Time taken to find block: {}".format(time_taken))
+            print("Hash: {}\n".format(block_to_add.hash))
+    return hash_array, time_array
+
+# Test function above
+hash_array, time_array = create_pow_blockchain(num_blocks, difficulty, blockchain, previous_block, nonce_length)
+```
+
+::: {.callout-tip}
+## note
+The function `create_pow_blockchain()` generates a blockchain using the proof-of-work algorithm. The function takes the number of blocks, the difficulty level, the blockchain, the previous block, the nonce length, and a broadcast flag as arguments. It returns the number of hashes tried and the time taken to find each block.
+:::
+
+### Test the Blockchain
+
+```{python}
+# Test the Blockchain
+def test_pow_blockchain(blockchain_pow, num_blocks):
+    correct = True
+    bound = generate_difficulty_bound(difficulty)
+    if len(blockchain_pow) != num_blocks + 1:
+        correct = False
+    for i in range(len(blockchain_pow) - 1):
+        if blockchain_pow[i + 1].previous_hash != blockchain_pow[i].hash:
+            correct = False
+            break
+        if int(blockchain_pow[i + 1].hash, 16) > bound:
+            correct = False
+            break
+    print_statement = "PASSED!!! Move on to the next Part" if correct else "FAILED!!! Try Again :("
+    print(print_statement)
+            
+test_pow_blockchain(blockchain, num_blocks)
+```
+
+::: {.callout-tip}
+## note
+The function `test_pow_blockchain()` tests the blockchain generated using the proof-of-work algorithm. The function takes the blockchain and the number of blocks as arguments. It checks if the blockchain is valid by verifying the previous hash and the hash of each block.
+:::
+
+# Distributed Network and Computing Power
+
+Using the following function, we will generate multiple miners. 
+Naive miner class that races with other miners to see who can get a certain number of blocks first.
+
+```{python}
+class MinerNodeNaive: 
+    def __init__(self, name, compute):
+        self.name = name 
+        self.compute = compute
+    
+    def try_hash(self, diff_value, chain):
+        last_block = chain[-1]
+        difficulty = generate_difficulty_bound(diff_value)
+        date_now = date.datetime.now()
+        this_index = last_block.index + 1
+        this_timestamp = date_now
+        this_data = "Hey! I'm block " + str(this_index)
+        this_hash = last_block.hash
+        new_block = Block(this_index, this_timestamp, this_data, this_hash)
+        if int(new_block.hash, 16) < difficulty:
+            chain.append(new_block)
+            # Tell everyone about it!
+            print("Block #{} has been added to the blockchain!".format(new_block.index))
+            print("Block found by: {}".format(self.name))
+            print("Hash: {}\n".format(new_block.hash))
+```
+
+::: {.callout-tip}
+## note
+First, we generate the name of the miner, and then the compute power that particular miner has in the first part. The **name** serves as an identifier for the miner within the blockchain network. In contrast, the **compute** attribute measures the miner's capability to perform the computational work required for mining blocks.
+
+In the second part, we must find the difficulty value and look at the chain. we will use the last_block, which is the last block in the chain, and the difficulty, which is the difficulty of the chain, then the current time, index order, and the data. As long as the difficulty is greater than the hash block, we will append the new block to the chain, and then print the details of the block.
+
+In summary, the function of this class is initializing miner attributes, creating a new block based on specific criteria, and adding it to the blockchain if it meets the difficulty requirements.
+:::
+
+## Generate multiple mining peers
+Generate five mining peers with different computing power. Use a `for` loop to generate an array of 5 miners; miners = [mineer1, mineer2, mineer3, mineer4, mineer5]
+1.	Use `comp_pow` = `random.randint` to generate random numbers and assign them to five peers.
+2.	For each miner in miners and each number in `comp_pow`, assign `MinerNodeNaive()` function
+3. **Use for loop instead of line-by-line generation; set `compute` a random number between 1-15.**
+
+```{python}
+miners = []
+
+# Use `comp_pow` = `random.randint` to generate random numbers and assign them to five peers.
+comp_pow = [random.randint(1, 15) for _ in range(1, 6)]
+
+for i, power in enumerate(comp_pow, start=1): 
+    #create a new miner with a name and a random compute power
+    miner = MinerNodeNaive("miner{}".format(i), power)
+    miners.append(miner)
+
+    #show the miner's name and compute power
+    print(miner.name, miner.compute)
+```
+
+##	Create a compute and mining simulation
+This function will create a random mining pool. Define `compute_simulation(miners)`
+1.	Create an empty array `com_array`
+2.	Using a `miner` in `miners` and that miner’s computing power, replicate the miner and append it to `com_array`, generating the random peer group.
+3.	Return this compute array
+
+```{python}
+def create_compute_simulation(miner_array):
+    compute_array = []
+    # Iterate through each miner in miner_array
+    for miner in miner_array:
+
+    # For each miner, append their name to compute_array based on their compute power
+        for i in range(miner.compute):
+            compute_array.append(miner.name)
+    return compute_array
+
+compute_simulation_array = create_compute_simulation(miners)
+# Use the function above to generate the compute simulation array
+
+random.shuffle(compute_simulation_array) 
+# Shuffle the array to simulate random mining
+```
+
+::: {.callout-tip}
+## note
+The function `create_compute_simulation()` generates a random mining pool based on the computing power of the miners. The function takes an array of miners as an argument and returns an array of miners based on their compute power. 
+:::
+##	Difficulty list 
+Generate an array, `difficult_list`, of random numbers between 2 to 6 spanning the length of the chain (number of blocks).
+
+```{python}
+# generate the difficult list.
+chain_length = 10
+blockchain_distributed = [create_genesis_block()]
+genesis_block_dist = blockchain_distributed[0]
+chain_difficulty = [random.randint(2, 6) for i in range(chain_length)]
+print(chain_difficulty)
+```
+
+::: {.callout-tip}
+## note
+The generated `chain_difficulty` list contains random difficulty levels between 2 and 6 for each block in the blockchain. The difficulty level determines the number of leading zeros in the hash of each block.
+:::
+
+## Simulation
+
+Using the parameters below generate a blockchain
+
+1.	For the length of the chain (`range(len(numblocks))`) and while blockchain is smaller than `numblocks+2`.
+2.	Set `next_miner = miner 2`
+3.	Sample from miners to pick one miner
+4.	For miner in miners, check if the sampled miner is the same as the miner name; if yes, then set that miner as `next_miner`
+5.	Calculate hash using the next miner's hash function (given above) 
+
+```{python}
+#simulation of the blockchain mining
+for i in range(len(chain_difficulty)): 
+    while len(blockchain_distributed) < i + 2:
+        next_miner_str = random.sample(compute_simulation_array, 1)[0] 
+        next_miner = miners[1] # miner[1] means the second miner in the list
+        for miner in miners:
+            if next_miner_str == miner.name:
+                next_miner = miner
+        next_miner.try_hash(chain_difficulty[i], blockchain_distributed) 
+```
+
+::: {.callout-tip}
+## note
+The simulation generates a blockchain by mining blocks using a distributed network of miners. The function iterates through the chain difficulty levels and mines blocks using the miners in the compute simulation array. The miner with the highest compute power is selected to mine each block based on the difficulty level. This is also called a **proof-of-work consensus mechanism**, that is used in Bitcoin network.
+:::
+
+# Analytics on the Blockchain Data
+For each difficulty level below, use the given data and `create_blockchain()` function from the last assignment
+
+## Extract the hash array and time array
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+
+blockchain = [create_genesis_block()]
+previous_block = blockchain[0]
+num_blocks = 10
+nonce_length = 20
+
+# List of different difficulty levels to analyze
+# difficulty_levels = [1, 2, 3, 4, 5, 6, 7]
+difficulty_levels = [1, 2, 3, 4, 5] 
+#I only set the difficulty to 5. It takes a long time to run the code if I set it to 7.
+
+# Arrays to store the mean hash and time for each difficulty level
+mean_arr_hash = []
+mean_arr_time = []
+
+# Arrays to store the full hash and time arrays for each difficulty level
+full_hash_arrays = []
+full_time_arrays = []
+
+# Iterate over each difficulty level with a progress bar
+for difficulty in tqdm(difficulty_levels, desc="Calculating difficulties"):
+    hash_array, time_array = create_pow_blockchain(num_blocks, difficulty, blockchain, previous_block, nonce_length, 0)
+    print("Difficulty Level: {} complete".format(difficulty))
+
+    #store the full hash and time arrays
+    full_hash_arrays.append(hash_array)
+    full_time_arrays.append(time_array)
+
+    # Calculate and store the mean values
+    mean_arr_hash.append(np.mean(hash_array))
+    mean_arr_time.append(np.mean(time_array))
+
+```
+
+##	Plot all 5 hash arrays on one plot
+```{python}
+#| label: fig-polar
+#| fig-cap: "Hash Attempts Across Different Difficulty Levels"
+#| fig-cap-location: top
+
+#extracting each hash array
+hash_array_0 = full_hash_arrays[0]
+hash_array_1 = full_hash_arrays[1]
+hash_array_2 = full_hash_arrays[2]
+hash_array_3 = full_hash_arrays[3]
+hash_array_4 = full_hash_arrays[4]
+
+plt.figure(figsize=(10, 8))
+
+plt.plot(hash_array_0, label="Difficulty 1")
+plt.plot(hash_array_1, label="Difficulty 2")
+plt.plot(hash_array_2, label="Difficulty 3")
+plt.plot(hash_array_3, label="Difficulty 4")
+plt.plot(hash_array_4, label="Difficulty 5")
+
+#disable scientific notation
+ax = plt.gca()
+ax.get_yaxis().get_major_formatter().set_scientific(False)
+
+#set the x-axis to be the block number
+plt.xticks(range(len(hash_array_0)))
+
+plt.title("Hash Attempts Across Different Difficulty Levels")
+plt.xlabel("Block Number")
+plt.ylabel("Number of Hash Attempts")
+plt.legend()
+plt.show()
+```
+
+::: {.callout-tip}
+## note
+The plot above shows the number of hash attempts required to mine each block for different difficulty levels. The x-axis represents the block number, while the y-axis represents the number of hash attempts. The plot provides insights into the mining process and the computational effort required to mine blocks at different difficulty levels.
+:::
+
+## Plot all 5 time arrays on one plot
+```{python}
+#| label: fig-polar1
+#| fig-cap: "Mining Time Across Different Difficulty Levels"
+#| fig-cap-location: top
+
+# Plotting the mean time values
+# extracting each time array
+time_array_0 = full_time_arrays[0]
+time_array_1 = full_time_arrays[1]
+time_array_2 = full_time_arrays[2]
+time_array_3 = full_time_arrays[3]
+time_array_4 = full_time_arrays[4]
+
+# plotting each time array individually
+plt.figure(figsize=(10, 8))
+
+plt.plot(time_array_0, label="Difficulty 1")
+plt.plot(time_array_1, label="Difficulty 2")
+plt.plot(time_array_2, label="Difficulty 3")
+plt.plot(time_array_3, label="Difficulty 4")
+plt.plot(time_array_4, label="Difficulty 5")
+
+# set the x-axis to be the block number
+plt.xticks(range(len(hash_array_0)))
+
+plt.title("Mining Time Across Different Difficulty Levels")
+plt.xlabel("Block Number")
+plt.ylabel("Time Taken (s)")
+plt.legend()
+plt.show()
+
+```
+
+::: {.callout-tip}
+## note
+The plot above shows the time taken to mine each block for different difficulty levels. The x-axis represents the block number, while the y-axis represents the time taken in seconds. The plot provides insights into the mining process and the time required to mine blocks at different difficulty levels.
+:::
+
+## Plot average of time plot
+```{python}
+# Calculate the factors of difficulty increase
+diff_factors = []
+for i in range(1, len(mean_arr_hash)):
+    diff_factor = mean_arr_hash[i] / mean_arr_hash[i - 1]
+    diff_factors.append(diff_factor)
+    print(f"Factor of difficulty increase from {i} to {i + 1}: {diff_factor:.2f}")
+```
+
+
+```{python}
+#| label: fig-polar2
+#| fig-cap: "Average Mining Time vs. Difficulty Levels"
+#| fig-cap-location: top
+
+plt.figure(figsize=(10, 8))
+
+#plot the mean time against difficulty levels
+plt.plot(difficulty_levels, mean_arr_time, marker='o', linestyle='-', color='b', label='Average Time')
+
+#set x-axis ticks to show difficulty_levels
+plt.xticks(difficulty_levels)
+
+plt.title('Average Mining Time vs. Difficulty Levels')
+plt.xlabel('Difficulty Level')
+plt.ylabel('Average Time (s)')
+plt.legend() 
+
+plt.show() 
+```
+
+::: {.callout-tip}
+## note
+The plot above shows the average time taken to mine a block for different difficulty levels. The x-axis represents the difficulty level, while the y-axis represents the average time taken in seconds. The plot provides insights into the mining process and the time required to mine blocks at different difficulty levels.
+:::
+
+```{python}
+#| label: fig-polar3
+#| fig-cap: "Average Hash Attempts vs. Difficulty Levels"
+#| fig-cap-location: top
+#
+#set figure size
+plt.figure(figsize=(10, 8))
+
+#plot the mean hash arrays against difficulty levels
+plt.plot(difficulty_levels, mean_arr_hash, marker='o', linestyle='-', color='r', label='Average Hash Attempts')
+
+#disable scientific notation
+ax = plt.gca()
+ax.get_yaxis().get_major_formatter().set_scientific(False)
+
+#set x-axis ticks to show difficulty_levels
+plt.xticks(difficulty_levels)
+
+plt.title('Average Hash Attempts vs. Difficulty Levels')
+plt.xlabel('Difficulty Level')
+plt.ylabel('Average Hash Attempts')
+plt.legend() 
+
+plt.show() 
+```
+
+::: {.callout-tip}
+## note
+The plot above shows the average number of hash attempts required to mine a block for different difficulty levels. The x-axis represents the difficulty level, while the y-axis represents the average number of hash attempts. The plot provides insights into the mining process and the computational effort required to mine blocks at different difficulty levels.
+:::
+
+# Conclusion
+As difficulity increases, the time taken to mine a block increases. The number of hash attempts also increases with the difficulty level.

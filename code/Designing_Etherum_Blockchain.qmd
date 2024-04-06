@@ -1,0 +1,722 @@
+---
+title: "Design Ethereum Blockchain and Simulate Transactions Process in Python"
+author:
+  - name: Jingda Yang
+    affiliations:
+      - name: Georgetown University
+        city: Washington
+        state: DC
+
+format:
+  html:
+    code-links:
+      - text: Data Import Code
+        icon: github
+        href: Assignment03_prompt.qmd
+
+    theme:
+        dark: darkly
+        light: cosmo
+
+    embed-resources: true
+    # eval: false
+    code-fold: show
+    self-contained: true
+    highlight: tango
+    page-layout: full
+    fig-cap-location: bottom
+    toc: true
+    toc-location: left
+    toc-title: Contents
+    number-sections: true
+    grid:
+      sidebar-width: 130px
+      body-width: 1000px
+---
+
+![Ethereum](eth.jpg){width=12inch height=4inch}
+
+# Introduction
+In the ever-evolving landscape of digital currencies, the Ethereum blockchain stands out as a pioneering platform that extends beyond mere financial transactions. Ethereum's robust framework supports smart contracts and decentralized applications (dApps), offering a versatile environment for developers and innovators. This assignment embarks on a comprehensive journey to dissect the underlying principles of the Ethereum blockchain. By employing Python, we aim to meticulously design and simulate the intricate processes of Ethereum transactions. This endeavor is not just about coding; it's an exploratory mission to unravel the complexities of blockchain technology. 
+
+::: {.callout-note}
+## Objective
+
+To design and implement a blockchain data structure using Python, emphasizing understanding each component and its integration.
+  
+Fundamentally, a blockchain is an amalgamation of several technologies. I would like to show each of those technologies built and combined in this project.
+:::
+
+
+
+# Ethereum Blockchain Data Structure
+The pre-merge design for the Ethereum block works on the proof-of-work consensus mechanism. The block structure is similar to the Bitcoin blockchain. We will modify that to develop a proof-of-stake consensus mechanism.
+
+![Ethereum Pre-merge Block Design](ethereumBlock-PoW.jpeg){width=80%}
+
+
+Each blockchain starts with a Genesis block. We will need to define this block function in object-oriented Python. We need to implement the `hash_block()`, which computes the hash value of this block based on how we initialize it. This function takes in no parameters. 
+
+## Importing Libraries
+```{python}
+# Import necessary libraries here
+import hashlib as hasher
+import random
+import datetime as date
+import numpy as np
+import hashlib
+import time
+```
+
+## Block Structure
+Define the Block class with the following components:
+
+1. `index`: The position of the block in the blockchain.
+2. `timestamp`: The time when the block is created.
+3. `data`: The content stored in the block.
+4. `previous_hash`: The hash of the previous block in the chain.
+5. `hash`: The hash of the current block, to be computed using `blockHash()` method.
+
+Implement the `__init__()` method to initialize these attributes and the `blockHash()` method to compute the block's hash.
+```{python}
+class Block:
+    def __init__(self, index, timestamp, data, previous_hash):
+        self.index = index
+        self.timestamp = timestamp
+        self.data = data 
+        self.previous_hash = previous_hash
+        self.hash = self.blockHash()
+
+# define a blockHash method to hash the block
+
+    def blockHash(self):
+        sha = hasher.sha256()
+        # concatenate the block data
+        blockHash = (str(self.index) + 
+                    str(self.timestamp) + 
+                    str(self.data) + 
+                    str(self.previous_hash))
+        
+        blockHash = blockHash.encode('utf-8') # encode the string
+        sha.update(blockHash) # hash the block
+        return sha.hexdigest() # return the hash
+```
+
+## Generate Genesis Block & Test Function
+
+```{python}
+#test class Block
+def block_validation(index, block_time, data, previous_hash):
+    new_block = Block(index, block_time, data, previous_hash)
+    check_string = '9e19b5858b4b0d68a6fffc9fc89fad752b446a3af2af1c7dac2e5077862a292a'
+    print_statement = "This is a valid Block" if str(new_block.hash) == check_string else "Please Check your work, this is incorrect."
+    print(print_statement)
+    
+block_time = '2023-12-30 23:59:59'
+data = 'Blockchain For Data Science'
+previous_hash = '9136cfeb0c77b41e1e86cb9940ca9bb65f7aca4e8e366a8ecf9226b735e0c323'
+index = 1
+block_validation(index, block_time, data, previous_hash)
+```
+
+
+# Validator Class and Address Generation
+
+In a Proof of Stake (PoS) blockchain, validators play a crucial role. This section aims to create a Validator class that represents these participants. Additionally, the section includes implementing a function for generating unique validator addresses.
+
+Objective: Understand the role of validators in PoS blockchain and how to manage their identities.
+
+Task: Create a `Validator` class with attributes like `name`, `stake`, and `address`. Implement a function `generate_validator_address(name)` to create unique addresses for validators. The three functions below are part of a single class: `Validator`. You will need to combine them in one code chunk once you are done with all three functions.
+
+## Base initialization  
+
+Create a function `__init__` with the following attributes:  
+
+1. `name`: The name of the validator.
+2. `stake`: The amount of stake the validator has in the blockchain.
+3. (public_key, private_key): The public-private key pair of the validator (generated using `generate_key_pair()`)
+4. `address`: The unique address of the validator.
+
+```{python}
+def __init__(self, name, stake):
+    self.name = name
+    self.stake = stake
+    self.public_key, self.private_key = self.generate_key_pair()
+    self.address = self.generate_validator_address()
+```
+
+::: {.callout-tip}
+## note
+The function above is the constructor for the class. 
+It takes in the name and stake of the validator and initializes the public and private keys and the address of the validator. 
+The public and private keys are generated using the generate_key_pair function and the address is generated using the generate_validator_address function.
+:::
+
+## Public Key Cryptography
+A public-private key pair in blockchain technology is fundamental to maintaining security and trust. The validator keeps the private key secret and is used to sign transactions, while the public key can be shared with others in the network to verify these transactions.
+
+I will need:  
+
+1. Import the `cryptography` library, specifically `cryptography.hazmat.primitives import serialization`, `from cryptography.hazmat.primitives.asymmetric import rsa`, `from cryptography.hazmat.backends import default_backend`. You will also need to import `base64`, `random`, and `hashlib` libraries.
+2. `generate_keys()`: A function that generates a public-private key pair for the validator.
+3. rsa module from `cryptography.hazmat.primitives.asymmetric` generates a specific private key based on the following parameters inside ` rsa.generate_private_key()`,
+   1. `public_exponent=65537`
+   2. `key_size=2048`
+   3. `backend=default_backend()`.
+4. Then set the public key to `private_key.public_key()`
+5. This will generate the private key and then the public key based on the private key. 
+6. Return those keys as a tuple `(public_key, private_key)`. 
+
+```{python}
+# Function 2
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+
+#The function below generates a key pair using the RSA algorithm.
+#The public and private keys are generated and returned according to the requirements.
+def generate_key_pair(self):
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+    public_key = private_key.public_key()
+    return public_key, private_key
+```
+
+::: {.callout-tip}
+## note
+The `generate_key_pair` function generates a public and private key pair using the RSA algorithm. The private key is generated with a public exponent of 65537 and a key size of 2048 bits. The public key is derived from the private key and returned as part of the key pair.
+  
+The function is designed to provide secure and unique key pairs for validators in the blockchain network, ensuring the integrity and confidentiality of transactions.
+:::
+
+
+## Generate Validator Address
+The uniqueness of a validator's address is crucial for security and transaction verification. Implement `generate_validator_address(name)`, which creates a unique address by hashing the validator's name along with a random number or timestamp to ensure uniqueness.
+
+I will need:
+Create a function `generate_validator_address(name)` that takes the validator's name as input and returns a unique address. The address is a hash of the validator's name and a random number or timestamp. I will need to **concatenate** the `name`, a specific date, and a random integer between 1 and 1,000,000.
+
+```{python}
+# Function 3
+#The function below generates the address of the validator using the SHA-256 hash function according to the requirements.
+def generate_validator_address(name):
+    date = '2024-02-13'  #use hardcoded date
+    random_int = random.randint(1, 1000000) #use random integer according to the requirements
+    string = str(name) + str(date) + str(random_int) #concatenate the name, date, and random integer together
+    address_sha256 = hashlib.sha256(string.encode('utf-8')) #hash the concatenated string using the SHA-256 hash function
+    address_hex = address_sha256.hexdigest() #convert the hashed string to hexadecimal format
+    return address_hex #return the hexadecimal address
+```
+
+```{python}
+#test the address generation function
+test_address_for_basic_function = generate_validator_address("Alice")
+test_address_for_basic_function
+```
+
+::: {.callout-tip}
+## note
+The `generate_validator_address` function creates a unique address for a validator based on their name, a specific date, and a random integer. The function concatenates these values, hashes the resulting string using the SHA-256 algorithm, and returns the hexadecimal representation of the hash. This ensures that each validator has a distinct and secure address for identification and verification purposes.
+  
+The function is designed to provide a secure and unique address for validators in the blockchain network, ensuring the integrity and confidentiality of transactions.
+:::
+
+## Advanced Task: Generate Validator Address based on private key and public key
+
+The uniqueness of a validator's address is crucial for security and transaction verification. Implement `generate_validator_address(name)`, which creates a unique address by hashing the validator's name along with a random number or timestamp to ensure uniqueness.
+
+I will need:  
+Create a function `generate_validator_address()` that takes the validator's self as input and returns a unique address.  
+
+1. From `public_key` (generated from the function above), use `public_bytes()`.
+2. This will require two inputs
+   1. `encoding` needs to be `serialization.Encoding.PEM`
+   2. `format` needs to be `serialization.PublicFormat.SubjectPublicKeyInfo`
+3. Then use `hashlib.sha256()` to hash the `public_key_bytes` and return the hex value.
+
+
+```{python}
+#| eval: false
+#an advanced version of the generate_validator_address function.
+def generate_validator_address(self):
+    publickey_bytes = self.public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    
+    #hash the public key bytes to generate a unique address
+    address_sha256 = hashlib.sha256(publickey_bytes)
+    address_hex = address_sha256.hexdigest()
+    return address_hex
+```
+
+::: {.callout-tip}
+## note
+The function above is more advanced to generate the address based on the public key.
+  
+It first serializes the public key into PEM format, then applies the SHA-256 hashing algorithm to the serialized bytes to ensure a secure and unique identifier. The result of the hash is then converted into a hexadecimal string, which is returned as the address.
+:::
+
+## Consolidate the Validator Class
+Combine the three functions above into one class `Validator` with the following attributes:
+
+1. Class `Validator`:
+   1. Function 1 (`__init__`):
+   2. Input:
+      1. `name`,
+      2. `stake`,
+      3. `public_key`, `private_key`
+      4. `address`
+   3. Function 2 (`generate_key_pair`):
+   4. Input: self
+      1. `public_key`, `private_key`
+   5. Function 3 or 3 Advanced (`generate_validator_address`):
+   6. Input: self
+
+Once the function is created, print out the `addresses` of the three validators, you and your other two group mates.  Print **Name, Stake, Address, and public key** for all three validators.
+
+```{python}
+## In this case, I will use advanced (`generate_validator_address`)
+# This class generates pairs of public and private keys for validators and their addresses according to the requirements.
+
+class Validator:
+
+    """
+    A class representing a Validator.
+    
+    Attributes:
+        name (str): The name of the validator.
+        stake (float/int): The stake of the validator.
+        public_key: The public key of the validator, used for cryptographic operations.
+        private_key: The private key of the validator.
+        address (str): A unique address generated for the validator.
+    """
+
+    #The constructor for the class. It takes in the name and stake of the validator and initializes the public and private keys and the address of the validator.
+    def __init__(self, name, stake):
+
+        """
+        The constructor for the Validator class.
+        
+        Parameters:
+            name (str): The name of the validator.
+            stake (float/int): The stake amount of the validator.
+            
+        Initializes the public and private keys using RSA algorithm and generates a unique address for the validator.
+        """
+        self.name = name
+        self.stake = stake
+        self.public_key, self.private_key = self.generate_key_pair()
+        self.address = self.generate_validator_address()
+
+    #The function below generates a key pair using the RSA algorithm.
+    def generate_key_pair(self):
+        """
+        Generates a public and private key pair using RSA algorithm.
+        
+        Returns:
+            tuple: A tuple containing the public key and private key.
+            
+        The key pair is generated with a key size of 2048 bits and a public exponent of 65537.
+        """
+
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+        public_key = private_key.public_key()
+        return public_key, private_key
+
+    #I choose to use the advanced (`generate_validator_address`) function.
+    def generate_validator_address(self):  # This is the advanced (`generate_validator_address`) function.
+        """
+        Generates a unique address for the validator by hashing their public key.
+        
+        Returns:
+            str: A hexadecimal string representing the unique address of the validator.
+            
+        This method converts the public key to bytes, hashes this using SHA-256, 
+        and then returns the hexadecimal representation of the hash.
+        """
+        
+        publickey_bytes = self.public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+
+        #hash the public key bytes to generate a unique address
+        address_sha256 = hashlib.sha256(publickey_bytes)
+        address_hex = address_sha256.hexdigest()
+        return address_hex
+
+#create validator instances
+validator1 = Validator("Alice", 100)
+validator2 = Validator("Bob", 200)
+validator3 = Validator("Charlie", 150)
+
+#show details for all validators
+print(f"Validator: {validator1.name}, Address: {validator1.address}, Stake: {validator1.stake}")
+print("Public Key:", validator1.public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+).decode('utf-8'), "\n")
+
+print(f"Validator: {validator2.name}, Address: {validator2.address}, Stake: {validator2.stake}")
+print("Public Key:", validator2.public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+).decode('utf-8'), "\n")
+
+print(f"Validator: {validator3.name}, Address: {validator3.address}, Stake: {validator3.stake}")
+print("Public Key:", validator3.public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+).decode('utf-8'), "\n")
+
+
+```
+
+::: {.callout-tip}
+## note
+The `Validator` class is designed for use in cryptographic or blockchain contexts, providing an approach to manage validator identities through key cryptographic operations. 
+  
+It initializes with a validator's name and stake, automatically generating RSA public and private keys for secure communications and transactions. Additionally, it creates a unique address for the validator by hashing the public key.
+:::
+
+# Transaction Class and Transaction Pool
+A transaction in a blockchain typically includes details like the sender's address, the receiver's address, the amount of data being transferred, and a cryptographic signature to verify the transaction's authenticity.
+
+Objective: Understand the role of transactions in a blockchain and how they are verified.
+
+Create a `Transaction` Class initialization `__init__` with the following attributes:
+
+1. `sender_address`: The address of the sender - this should use the address created from the address we have generated before. Make sure to save the list of addresses and public and private keys in a separate file and import them here.
+2. `receiver_address`: The address of the receiver.
+3. `value`: The amount of data being transferred.
+4. `signature`: The transaction's signature needs to be computed using `sign_transaction()` method. For now, it will be a blank string `""`.
+
+## Base Initialization
+```{python}
+#The init function initializes the attributes of the class.
+def __init__(self, sender_address, receiver_address, value, sender_public_key=None):
+    self.sender_address = sender_address #store the sender's address
+    self.receiver_address = receiver_address #store the receiver's address
+    self.value = value #store the value of the transaction
+    self.signature = "" #store the signature of the transaction, initially empty
+    self.sender_public_key = sender_public_key  #store the sender's public key
+```
+
+::: {.callout-tip}
+## note
+First we need to initialize the `Transaction` class with the sender's address, receiver's address, and the value of the transaction. The `signature` attribute is initially set to an empty string, as it will be generated later using the `sign_transaction()` method. The sender's public key is optional and can be provided for verification purposes.
+:::
+
+## Signing Transactions
+
+transaction_data: The byte-encoded data representing the transaction.
+  
+Then we use the `private_key` to sign the `transaction_data` using the `sign()` method. This will generate the signature for the transaction.
+  
+The signature is then encoded and returned as a string.
+
+```{python}
+#reference to function to sign a key that generated from a ras method
+#    https://elc.github.io/python-security/chapters/07_Asymmetric_Encryption.html
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
+
+#The function below signs the transaction
+def sign_transaction(self, private_key):
+    transaction_data = (self.sender_address + self.receiver_address + str(self.value)).encode()
+    self.signature = private_key.sign(
+        transaction_data,
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+
+```
+
+::: {.callout-tip}
+## note
+Before a transaction is added to the blockchain, it needs to be signed by the sender using their private key. The `sign_transaction()` method takes the private key of the sender and generates a cryptographic signature for the transaction. The signature is created by hashing the transaction data and signing it with the private key using the RSA algorithm. This ensures the authenticity and integrity of the transaction.
+:::
+
+
+## Verifying Transactions
+We need to verify the transaction signature to ensure that the transaction is valid and has not been tampered with. The `verify_transaction_signature()` method will verify the signature of the transaction using the sender's public key.
+
+```{python}
+# reference to function to verify a transaction_signature that generated from a ras method
+#    https://elc.github.io/python-security/chapters/07_Asymmetric_Encryption.html
+
+from cryptography.exceptions import InvalidSignature
+
+def verify_transaction_signature(self):
+    #if the signature or the sender's public key is not available, the transaction is invalid
+    if not self.signature or not self.sender_public_key:
+        return False
+    
+    #verify the signature
+    try:
+        transaction_data = (self.sender_address + self.receiver_address + str(self.value)).encode()
+        
+        self.sender_public_key.verify(
+            self.signature,
+            transaction_data,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        return True
+    #if the signature is invalid, the verify method will raise an InvalidSignature exception
+    except InvalidSignature as e:
+        print(e)
+        return False
+```
+
+::: {.callout-tip}
+## note
+After we sign a transaction, we need to verify the signature to ensure that the transaction is valid and has not been tampered with. The `verify_transaction_signature()` method checks if the transaction includes a valid signature and the sender's public key. It then attempts to verify the signature using the public key. If the verification is successful, the method returns True, indicating that the transaction is valid. If the verification fails or the necessary components are missing, the method returns False.
+:::
+
+## Transaction Pool
+A transaction pool is a collection of all the transactions that are yet to be added to a block. It is a temporary storage space for transactions that are waiting to be verified. The transaction pool is a critical component of a blockchain as it allows the network to verify transactions and add them to the blockchain.
+
+Follow the algorithm and define the function.
+
+:::: algorithm
+::: lined
+**Algorithm**:  Add Transaction to Pool
+:::
+
+**Input:** transaction, transaction_pool
+
+**Output:** Boolean value indicating success or failure of adding the transaction
+
+**begin**
+
+  1. **if** not transaction.sender_address or not transaction.receiver_address or not transaction.value **then**
+      - **return** False  // Invalid transaction
+  2. **if** not transaction.verify_transaction_signature() **then**
+      - **return** False  // Invalid signature
+  3. Add the transaction to the transaction_pool
+      - transaction_pool.append(transaction)
+  4. **return** True  // Transaction successfully added
+
+**end**
+::::
+
+
+```{python}
+transaction_pool = []
+#add a transaction to the pool
+def add_transaction_to_pool(transaction, transaction_pool):
+
+    #check if sender address, receiver address, and value are valid
+    if not transaction.sender_address or not transaction.receiver_address or not transaction.value:
+        print("Invalid transaction.")
+        return False
+    
+    #if the transaction is not signed, reject it
+    if not transaction.verify_transaction_signature():
+        print("Invalid signature.")
+        return False
+    
+    #if the transaction is valid, add it to the pool
+    transaction_pool.append(transaction)
+    return True
+```
+
+::: {.callout-tip}
+## note
+We can use the `add_transaction_to_pool` function to add a transaction to the transaction pool so that we can check transaction details. The function first checks if the transaction has a valid sender address, receiver address, and value. If any of these are missing, the transaction is considered invalid, and the function returns False. Next, the function verifies the transaction signature using the `verify_transaction_signature` method. If the signature is invalid, the function returns False. If the transaction is valid, it is added to the transaction pool, and the function returns True to indicate success.
+:::
+
+## Consolidate the Transaction Class
+
+```{python}
+class Transaction:
+    """
+    Represents a transaction process in a blockchain system, including details such as the sender's and receiver's addresses, 
+    the transaction value, and the cryptographic signature.
+    
+    Attributes:
+        sender_address (str): The address of the transaction sender.
+        receiver_address (str): The address of the transaction receiver.
+        value (float/int): The value of the transaction.
+        signature (str): The cryptographic signature of the transaction, initially empty.
+        sender_public_key: The sender's public key, which is optional.
+    """
+
+    def __init__(self, sender_address, receiver_address, value, sender_public_key=None):
+        """
+        Initializes a new Transaction instance with the given sender and receiver addresses, value, and the sender's public key.
+        
+        Parameters:
+            sender_address (str): The address of the transaction sender.
+            receiver_address (str): The address of the transaction receiver.
+            value (float/int): The value of the transaction.
+            signature (str): The cryptographic signature of the transaction, initially empty.
+            sender_public_key: The sender's public key for verifying the transaction.
+        """
+
+        self.sender_address = sender_address # store the sender's address
+        self.receiver_address = receiver_address # store the receiver's address
+        self.value = value # store the value of the transaction
+        self.signature = "" # store the signature of the transaction, initially empty
+        self.sender_public_key = sender_public_key  # store the sender's public key
+
+
+    #reference to function to sign a key that generated from a ras method
+    #    https://elc.github.io/python-security/chapters/07_Asymmetric_Encryption.html
+        
+    #The function below signs the transaction
+    def sign_transaction(self, private_key):
+        """
+        Signs the transaction
+        
+        Parameters:
+            private_key: The private key of the transaction sender, used to sign the transaction.
+            transaction_data: The data to be signed, including the sender and receiver addresses and the transaction value.
+            
+        The function generates a cryptographic signature based on the transaction's details, including the sender and receiver addresses and the transaction value.
+        """
+
+        transaction_data = (self.sender_address + self.receiver_address + str(self.value)).encode()
+        self.signature = private_key.sign(
+            transaction_data,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+    
+    #reference to function to verify a transaction_signature that generated from a ras method
+    #    https://elc.github.io/python-security/chapters/07_Asymmetric_Encryption.html
+        
+    #The function below verifies the signature of the transaction
+    def verify_transaction_signature(self):
+        """
+        Verifies the transaction's signature.
+        
+        Returns:
+            bool: True if the signature is valid and the transaction is verified, False otherwise.
+            
+        This function checks if the transaction includes a signature and a sender's public key, then attempts to verify the signature. 
+        If verification fails or the necessary components are missing, it returns False.
+        """
+
+        #check if the transaction has a signature and a sender's public key
+        if not self.signature or not self.sender_public_key:
+            return False
+        
+        try:
+            transaction_data = (self.sender_address + self.receiver_address + str(self.value)).encode()
+            #verify the signature
+            self.sender_public_key.verify(
+                self.signature,
+                transaction_data,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            return True
+        
+        #deal with the exception if the signature is invalid
+        except InvalidSignature as e:
+            print(e)
+            return False
+
+
+```
+
+::: {.callout-tip}
+## note
+This is the full implementation of the `Transaction` class, which represents a transaction in a blockchain system. The class includes attributes for the sender's and receiver's addresses, the transaction value, and the cryptographic signature. It also provides methods for signing and verifying the transaction, ensuring the integrity and authenticity of the transaction data.
+:::
+
+# Generate Transaction List
+For the three users, create five transactions, append them to the transaction pool, and display the transaction pool. 
+
+::: {.callout-tip}
+## note
+This is the whole transaction process, including generating transactions, signing them, adding them to the transaction pool, and updating validator balances. The function creates five transactions between random pairs of validators, signs the transactions, and adds them to the transaction pool. It also checks the sender's balance before adding a transaction and updates the balances accordingly. The transaction details are stored and displayed, including sender and receiver names, addresses, values, success status, and balances after the transaction.
+:::
+
+```{python}
+#define a function to get the validator name by address
+def get_validator_name_by_address(address, validators):
+    """
+    Retrieves the name of a validator based on their address.
+    
+    Parameters:
+        address (str): The unique address of the validator.
+        validators (list): A list of Validator objects.
+        
+    Returns:
+        str: The name of the validator if found, or "Unknown Validator" if not.
+    """
+
+    for validator in validators:
+        if validator.address == address:
+            return validator.name
+    return "Unknown Validator"
+
+#create validator instances
+validator1 = Validator("Alice", 100)
+validator2 = Validator("Bob", 200)
+validator3 = Validator("Charlie", 150)
+
+#create a list of validators and store the instances
+validators = [validator1, validator2, validator3]
+
+#initialize validator balances
+validator_balances = {
+    validator1.address: validator1.stake,
+    validator2.address: validator2.stake,
+    validator3.address: validator3.stake
+}
+transaction_details = []
+
+#add transactions to the transaction pool
+for i in range(5):
+    sender, receiver = random.sample(validators, 2)
+    value = random.randint(1, 100) 
+    transaction = Transaction(sender.address, receiver.address, value, sender.public_key)
+    transaction.sign_transaction(sender.private_key)
+    
+    #check sender balance. if insufficient, skip the transaction
+    if validator_balances[sender.address] < value:
+        print(f"Transaction from {sender.name} to {receiver.name} with value {value} failed: insufficient funds.")
+        continue
+    
+    success = add_transaction_to_pool(transaction, transaction_pool)
+    if success:
+        #update balances for sender and receiver
+        validator_balances[sender.address] -= value
+        validator_balances[receiver.address] += value
+
+    #store transaction details
+    transaction_details.append((transaction, success, validator_balances[sender.address], validator_balances[receiver.address]))
+
+#print the transaction pool contents
+print("\nTransaction Pool Contents:")
+for i, (transaction, success, sender_balance, receiver_balance) in enumerate(transaction_details, start=1):
+    sender_name = get_validator_name_by_address(transaction.sender_address, validators)
+    receiver_name = get_validator_name_by_address(transaction.receiver_address, validators)
+    print("Transaction " + str(i) + ":")
+    print("  Sender Name: " + sender_name)
+    print("  Sender Address: " + transaction.sender_address)
+    print("  Receiver Name: " + receiver_name)
+    print("  Receiver Address: " + transaction.receiver_address)
+    print("  Value: " + str(transaction.value))
+    print("  Added: " + str(success))
+    print("  Sender Balance After: " + str(sender_balance))
+    print("  Receiver Balance After: " + str(receiver_balance))
+    print("  Signature: " + transaction.signature.hex()[:32] + "... (truncated for readability)\n")
+```
+
